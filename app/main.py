@@ -11,6 +11,8 @@ app = FastAPI()
 connection = psycopg.connect("dbname = fastapi user=postgres password=R!$H!2003")
 cursor = connection.cursor()
 
+
+# noinspection PyCompatibility
 class Post(BaseModel):
     id: int = 0
     title: str
