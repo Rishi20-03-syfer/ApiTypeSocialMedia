@@ -33,7 +33,7 @@ def get_posts(db: Session = Depends(get_db)):
 
 @app.post("/createpost", status_code=status.HTTP_201_CREATED,response_model=Schemas.PostResponse )
 def create_post(new_post: Schemas.Post,db:Session=Depends(get_db)):
-    new_post = models.Post(title=new_post.title,content=new_post.content    )
+    new_post = models.Post(**new_post.dict())
     db.add(new_post)
     db.commit()
     return new_post
@@ -70,8 +70,8 @@ def update_post(id: int, post: Schemas.Post,db:Session=Depends(get_db)):
         #                (post.title, post.content, str(id),))
         # connection.commit()
     post_query = db.query(models.Post).filter(models.Post.id == id)
-    post_content = post_query.first()
-    if post_content is None:
+
+    if post_query.first() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {id} not found.")
     post_query.update(post.dict(),synchronize_session=False)
     db.commit()
