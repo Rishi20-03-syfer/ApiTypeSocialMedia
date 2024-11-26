@@ -1,71 +1,78 @@
-from fastapi import FastAPI, HTTPException, status, Response,Depends
+from fastapi import FastAPI, HTTPException, status, Response, Depends
 from pydantic import BaseModel
 import psycopg
-from . import models
+from . import models,Schemas
 from sqlalchemy.orm import Session
-from .database import engine,get_db
+from .database import engine, get_db
+from typing import List
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-connection = psycopg.connect("dbname = fastapi user=postgres password=R!$H!2003")
-cursor = connection.cursor()
+# connection = psycopg.connect("dbname = fastapi user=postgres password=R!$H!2003")
+# cursor = connection.cursor()
 
 
-# noinspection PyCompatibility
-class Post(BaseModel):
-    id: int = 0
-    title: str
-    content: str
-    published: bool = True
+# class PostSchema(BaseModel):
+#     title: str
+#     content: str
+#     published: bool = True
+
 
 @app.get("/")
 def root():
     return {"data": "Server is running.."}
 
-@app.get("/sqlalchemy")
-def test_posts(db:Session=Depends(get_db)):
-    return {"message":"success"}
 
-@app.get("/posts")
-def get_posts():
-    cursor.execute("select * from social_media;")
-    user_posts = cursor.fetchall()
-    return {"Posts": user_posts}
-
-@app.post("/createpost", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post):
-    cursor.execute("insert into social_media (title,content,published) values(%s,%s,%s)",(post.title,post.content,post.published))
-    connection.commit()
-    return {"message": "Post created successfully!!"}
+@app.get("/posts",response_model=List[Schemas.PostResponse] )
+def get_posts(db: Session = Depends(get_db)):
+    # user_posts = cursor.execute("select * from social_media;")
+    user_posts = db.query(models.Post).all()
+    return user_posts
 
 
+@app.post("/createpost", status_code=status.HTTP_201_CREATED,response_model=Schemas.PostResponse )
+def create_post(new_post: Schemas.Post,db:Session=Depends(get_db)):
+    new_post = models.Post(title=new_post.title,content=new_post.content    )
+    db.add(new_post)
+    db.commit()
+    return new_post
 
-@app.get("/post/{id}")
-def get_post(id: int):
-    cursor.execute("select * from social_media where id = %s",(str(id),))
-    required_post = cursor.fetchone()
+
+@app.get("/post/{id}",response_model=Schemas.PostResponse)
+def get_post(id: int,db:Session=Depends(get_db)):
+    # cursor.execute("select * from social_media where id = %s", (str(id),))
+    # required_post = cursor.fetchone()
+    required_post = db.query(models.Post).filter(models.Post.id == id).first()
     if not required_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"The requested post id {id} not found")
 
-    return {"message": required_post}
-
+    return required_post
 
 
 @app.delete("/post/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int):
-    try:
-        cursor.execute("delete from social_media where id = %s ",(str(id),))
-        connection.commit()
-    except HTTPException:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= f"post with id {id} not found.")
-    return Response(status_code = status.HTTP_204_NO_CONTENT)
+def delete_post(id: int,db:Session=Depends(get_db)):
+    #     cursor.execute("delete from social_media where id = %s ", (str(id),))
+    #     connection.commit()
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+
+    if post_query.first() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {id} not found.")
+    post_query.delete(synchronize_session=False)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@app.put("/post/{id}")
-def update_post(id: int, post: Post):
-    try:
-        cursor.execute(f"update social_media set title=%s, content=%s where id = %s;",(post.title,post.content,str(id),))
-        connection.commit()
-    except HTTPException:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id {id} not found.")
+@app.put("/post/{id}",response_model=Schemas.PostResponse)
+def update_post(id: int, post: Schemas.Post,db:Session=Depends(get_db)):
+    # try:
+        # cursor.execute(f"update social_media set title=%s, content=%s where id = %s;",
+        #                (post.title, post.content, str(id),))
+        # connection.commit()
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    post_content = post_query.first()
+    if post_content is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id {id} not found.")
+    post_query.update(post.dict(),synchronize_session=False)
+    db.commit()
+    return

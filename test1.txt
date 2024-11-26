@@ -1,0 +1,19 @@
+index = Build.HTMl{                                                    // contains links for external resources.
+version: HTML5;
+external: blank;
+heading1: h1, This is top heading,(bold,red),center top;  // element's unique name: element,content=blank,style=blank,position.
+background1: bg,url/plane colour;
+div1 : div,(20px from top,20px from right);
+button1: button, submit, div1;
+}
+
+style = Build.CSS{
+version: CSS3;
+heading1: 10px,red,;                                           // unique name of element will be modified accordingly.
+div1: size(200px,300px),margin(10px,10px,5px,5px),type(block); // size, margin, type are built in functions.
+button1: red,border(8px,solid);
+}
+
+script = Build.Js{
+button: on_click(change the background colour to blue);
+}
